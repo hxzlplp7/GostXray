@@ -244,6 +244,16 @@ setup_chroot() {
     
     echo -e "${Info} chroot 环境设置完成"
     echo -e "${Info} chroot 目录: $CHROOT_DIR"
+    
+    # 尝试在 chroot 中安装 bash (脚本需要 bash)
+    echo -e "${Info} 正在安装 bash..."
+    cd "$MRCHROOT_DIR"
+    if ./mrchroot "$CHROOT_DIR" pkg install -y bash 2>/dev/null; then
+        echo -e "${Info} bash 安装成功"
+    else
+        echo -e "${Warning} bash 安装失败，可能需要手动安装"
+        echo -e "${Tip} 进入 chroot 后运行: pkg install bash"
+    fi
 }
 
 # ==================== 安装 GostXray 到 chroot ====================
@@ -332,7 +342,7 @@ MRCHROOT_DIR="$HOME/.mrchroot"
 CHROOT_DIR="$MRCHROOT_DIR/chroot"
 
 cd "$MRCHROOT_DIR"
-./mrchroot "$CHROOT_DIR" /bin/sh /root/gost-root.sh
+./mrchroot "$CHROOT_DIR" /usr/local/bin/bash /root/gost-root.sh
 EOF
     chmod +x "$USER_HOME/bin/gostxray-root"
     
@@ -346,11 +356,11 @@ CHROOT_DIR="$MRCHROOT_DIR/chroot"
 cd "$MRCHROOT_DIR"
 
 if [ "$1" = "install" ]; then
-    ./mrchroot "$CHROOT_DIR" /bin/sh /root/x-ui-install.sh
+    ./mrchroot "$CHROOT_DIR" /usr/local/bin/bash /root/x-ui-install.sh
 elif [ "$1" = "menu" ] || [ -z "$1" ]; then
-    ./mrchroot "$CHROOT_DIR" /bin/sh /root/x-ui.sh
+    ./mrchroot "$CHROOT_DIR" /usr/local/bin/bash /root/x-ui.sh
 else
-    ./mrchroot "$CHROOT_DIR" /bin/sh /root/x-ui.sh "$@"
+    ./mrchroot "$CHROOT_DIR" /usr/local/bin/bash /root/x-ui.sh "$@"
 fi
 EOF
     chmod +x "$USER_HOME/bin/xui-root"
@@ -529,7 +539,7 @@ ${Green}========================================================${Reset}
         6)
             if [ -f "$MRCHROOT_BIN" ] && [ -f "$CHROOT_DIR/root/gost-root.sh" ]; then
                 cd "$MRCHROOT_DIR"
-                ./mrchroot "$CHROOT_DIR" /bin/sh /root/gost-root.sh
+                ./mrchroot "$CHROOT_DIR" /usr/local/bin/bash /root/gost-root.sh
             else
                 echo -e "${Error} GostXray 未安装到 chroot 环境"
             fi
@@ -537,7 +547,7 @@ ${Green}========================================================${Reset}
         7)
             if [ -f "$MRCHROOT_BIN" ] && [ -f "$CHROOT_DIR/root/x-ui-install.sh" ]; then
                 cd "$MRCHROOT_DIR"
-                ./mrchroot "$CHROOT_DIR" /bin/sh /root/x-ui-install.sh
+                ./mrchroot "$CHROOT_DIR" /usr/local/bin/bash /root/x-ui-install.sh
             else
                 echo -e "${Error} X-UI 安装脚本未安装到 chroot 环境"
             fi
