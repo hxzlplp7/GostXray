@@ -541,11 +541,13 @@ EOF
 }
 
 # ==================== GOST 配置生成 ====================
+# 注意: Serv00/HostUno 非 root 环境无法绑定 UDP 端口，只使用 TCP
 generate_gost_config() {
     local port="$1"
     local host="$2"
     local dport="$3"
     
+    # Serv00 环境只能使用 TCP (非 root 无法绑定 UDP)
     cat << EOF
   - name: relay-${port}
     addr: ":${port}"
@@ -553,16 +555,6 @@ generate_gost_config() {
       type: tcp
     listener:
       type: tcp
-    forwarder:
-      nodes:
-        - name: target
-          addr: "${host}:${dport}"
-  - name: relay-${port}-udp
-    addr: ":${port}"
-    handler:
-      type: udp
-    listener:
-      type: udp
     forwarder:
       nodes:
         - name: target
@@ -586,7 +578,7 @@ EOF
         echo "$config" >> "$GOST_CONF"
     fi
     
-    echo "gost|tcp+udp|${port}|${host}|${dport}" >> "$RAW_CONF"
+    echo "gost|tcp|${port}|${host}|${dport}" >> "$RAW_CONF"
 }
 
 # ==================== GOST 进程管理 ====================
