@@ -11,7 +11,7 @@ Error="${Red}[错误]${Reset}"
 Warning="${Yellow}[警告]${Reset}"
 Tip="${Cyan}[提示]${Reset}"
 
-shell_version="3.1.0-serv00"
+shell_version="3.2.0-serv00"
 gost_version="3.0.0"
 
 # Serv00 用户目录
@@ -67,6 +67,118 @@ check_system() {
     esac
     
     echo -e "${Info} 系统: $os ($arch)"
+}
+
+# ==================== Devil 端口管理 (Serv00/HostUno) ====================
+
+# 检查端口是否已被 devil 添加
+check_devil_port() {
+    local port=$1
+    local port_type=$2
+    
+    if ! command -v devil >/dev/null 2>&1; then
+        return 1
+    fi
+    
+    devil port list | grep -q "${port_type} ${port}"
+    return $?
+}
+
+# 使用 devil 添加端口
+add_devil_port() {
+    local port=$1
+    local port_type=$2
+    local description=$3
+    local max_retries=${4:-5}
+    
+    if ! command -v devil >/dev/null 2>&1; then
+        echo -e "${Warning} devil 命令不可用，跳过端口添加" >&2
+        return 0
+    fi
+    
+    if check_devil_port "$port" "$port_type"; then
+        echo -e "${Info} 端口 ${port_type}/${port} 已存在" >&2
+        return 0
+    fi
+    
+    local retry=0
+    while [ $retry -lt $max_retries ]; do
+        echo -e "${Yellow}正在添加端口 ${port_type}/${port}... (尝试 $((retry+1))/${max_retries})${Reset}" >&2
+        
+        local result=$(devil port add ${port_type} ${port} "${description}" 2>&1)
+        
+        if [[ $? -eq 0 ]] || echo "$result" | grep -qi "success\|已添加"; then
+            echo -e "${Info} 端口 ${port_type}/${port} 添加成功" >&2
+            return 0
+        elif echo "$result" | grep -qi "already\|exists\|已存在"; then
+            echo -e "${Info} 端口 ${port_type}/${port} 已存在" >&2
+            return 0
+        else
+            echo -e "${Error} 添加失败: $result" >&2
+            ((retry++))
+            [ $retry -lt $max_retries ] && sleep 1
+        fi
+    done
+    
+    echo -e "${Error} 端口添加失败" >&2
+    return 1
+}
+
+# 获取随机端口并添加到 devil
+get_random_devil_port() {
+    local port_type=$1
+    local description=$2
+    local min_port=${3:-10000}
+    local max_port=${4:-65000}
+    local max_attempts=50
+    
+    if ! command -v devil >/dev/null 2>&1; then
+        echo $((RANDOM % (max_port - min_port + 1) + min_port))
+        return 0
+    fi
+    
+    local attempt=0
+    while [ $attempt -lt $max_attempts ]; do
+        local port=$((RANDOM % (max_port - min_port + 1) + min_port))
+        
+        if ! sockstat -l | grep -q ":$port "; then
+            if add_devil_port "$port" "$port_type" "$description"; then
+                echo "$port"
+                return 0
+            fi
+        fi
+        ((attempt++))
+    done
+    
+    return 1
+}
+
+# 检测协议类型 (tcp/udp)
+detect_protocol_type() {
+    local protocol=$1
+    case "$protocol" in
+        hysteria2|hy2|tuic|quic) echo "udp" ;;
+        *) echo "tcp" ;;
+    esac
+}
+
+# 检查端口连通性
+check_port_connectivity() {
+    local host=$1
+    local port=$2
+    local timeout=${3:-3}
+    
+    echo -e "${Info} 检查 ${host}:${port} 连通性..."
+    
+    if command -v nc >/dev/null 2>&1; then
+        if timeout ${timeout} nc -z -w 2 "$host" "$port" >/dev/null 2>&1; then
+            echo -e "${Info} ✓ 端口可达"
+            return 0
+        fi
+    fi
+    
+    echo -e "${Warning} ✗ 端口不可达"
+    return 1
 }
 
 # ==================== 端口管理 ====================
@@ -547,7 +659,7 @@ add_relay_config() {
     read -p "请选择 [默认1]: " input_type
     input_type=${input_type:-1}
     
-    local proto="" parsed=""
+    local proto="" parsed="" port_type="tcp"
     
     if [ "$input_type" == "1" ]; then
         read -p "请粘贴节点链接: " node_link
@@ -564,20 +676,60 @@ add_relay_config() {
         fi
         
         echo -e "${Info} 协议: ${Green}${proto^^}${Reset}"
+        port_type=$(detect_protocol_type "$proto")
+        echo -e "${Info} 端口类型: ${Green}${port_type^^}${Reset}"
         
         parsed=$(parse_node "$node_link")
         local target=$(get_target "$proto" "$parsed")
         IFS='|' read -r target_host target_port <<< "$target"
         
         echo -e "${Info} 目标: ${Green}${target_host}:${target_port}${Reset}"
+        
+        # 检查目标端口连通性
+        if ! check_port_connectivity "$target_host" "$target_port" 3; then
+            echo -e "${Warning} 目标端口不可达，可能原因:"
+            echo -e "  1. 目标服务器防火墙拦截"
+            echo -e "  2. 网络不通或延迟过高"
+            echo -e "  3. 目标端口未开放"
+            read -p "是否仍要添加? [y/N]: " confirm
+            [[ ! $confirm =~ ^[Yy]$ ]] && return 1
+        fi
     else
         read -p "目标地址: " target_host
         read -p "目标端口: " target_port
     fi
     
-    if ! read_port_config; then
-        return 1
-    fi
+    # 端口配置 - 使用 devil 端口管理
+    echo -e ""
+    echo -e "${Info} 端口配置:"
+    echo -e "[1] 随机端口 + 自动添加 Devil 端口"
+    echo -e "[2] 手动指定端口"
+    read -p "请选择 [默认1]: " port_mode
+    port_mode=${port_mode:-1}
+    
+    case $port_mode in
+        1)
+            local_port=$(get_random_devil_port "$port_type" "gost-relay" 10000 65000)
+            if [ -z "$local_port" ]; then
+                echo -e "${Error} 获取端口失败"
+                return 1
+            fi
+            echo -e "${Info} 分配端口: ${Green}$local_port${Reset}"
+            ;;
+        2)
+            read -p "请输入端口: " local_port
+            if ! check_port $local_port; then
+                echo -e "${Warning} 端口可能已被占用"
+            fi
+            add_devil_port "$local_port" "$port_type" "gost-relay"
+            ;;
+        *)
+            echo -e "${Error} 无效选择"
+            return 1
+            ;;
+    esac
+    
+    echo "$local_port" >> "$PORT_CONF"
     
     # 获取本机IP
     local my_ip=$(curl -s4m5 ip.sb 2>/dev/null || curl -s4m5 ifconfig.me 2>/dev/null)
@@ -591,8 +743,17 @@ add_relay_config() {
     echo -e "${Info} 中转配置完成!"
     echo -e "${Green}===========================================${Reset}"
     echo -e " 本机IP:    ${Cyan}${my_ip}${Reset}"
-    echo -e " 本地端口:  ${Cyan}${local_port}${Reset}"
+    echo -e " 本地端口:  ${Cyan}${local_port} (${port_type})${Reset}"
     echo -e " 目标地址:  ${target_host}:${target_port}"
+    
+    # 显示 Devil 端口状态
+    if command -v devil >/dev/null 2>&1; then
+        if devil port list 2>/dev/null | grep -q "${port_type} ${local_port}"; then
+            echo -e " Devil端口: ${Green}✓ 已添加${Reset}"
+        else
+            echo -e " Devil端口: ${Yellow}⚠ 未添加${Reset}"
+        fi
+    fi
     echo -e "${Green}===========================================${Reset}"
     
     if [ "$input_type" == "1" ] && [ -n "$parsed" ]; then

@@ -26,11 +26,13 @@ curl -sL https://raw.githubusercontent.com/hxzlplp7/GostXray/main/gost-serv00.sh
 chmod +x gost.sh && ./gost.sh
 ```
 
-> ⚠️ **Serv00 版本特点:**
+> ⚠️ **Serv00/HostUno 版本特点:**
 > - 专为 FreeBSD 非 root 环境设计
 > - 安装到用户目录 `~/.gost/`
 > - 使用进程管理替代 systemd
-> - 不支持 Xray (无 root 权限)
+> - **Devil 端口管理**: 自动使用 `devil` 命令添加和管理端口
+> - **端口连通性检查**: 添加规则前自动检测目标端口是否可达
+> - **协议类型识别**: 自动识别 TCP/UDP 协议类型并添加相应端口
 
 ## ✨ 功能特性
 
@@ -149,6 +151,13 @@ chmod +x gost.sh && ./gost.sh
 - 本机公网 IP
 
 ## 🔄 更新日志
+
+### v3.2.0
+- ✅ Serv00/HostUno 版本增强
+- ✅ 添加 Devil 端口管理 (自动添加/检查系统端口)
+- ✅ 添加端口连通性检查 (tcping 检测目标端口)
+- ✅ 添加协议类型自动识别 (TCP/UDP)
+- ✅ 从 x-ui 项目移植的任意门功能整合
 
 ### v3.1.0
 - ✅ 添加快捷命令 `gost` 支持
