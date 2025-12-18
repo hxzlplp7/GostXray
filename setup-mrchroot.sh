@@ -400,6 +400,147 @@ show_usage() {
     echo -e "${Green}======================================================${Reset}"
 }
 
+# ==================== Devil 端口管理 (宿主环境) ====================
+DEVIL_PORTS_FILE="$MRCHROOT_DIR/devil_ports.conf"
+
+# 检查 devil 命令是否可用
+check_devil() {
+    if command -v devil &>/dev/null; then
+        return 0
+    else
+        echo -e "${Warning} devil 命令不可用"
+        echo -e "${Tip} 此功能仅在 Serv00/HostUno 宿主环境中可用"
+        return 1
+    fi
+}
+
+# 使用 devil 添加端口
+add_devil_port() {
+    if ! check_devil; then
+        return 1
+    fi
+    
+    echo -e ""
+    echo -e "${Info} 添加 Devil 端口 (在宿主环境中)"
+    echo -e "${Tip} 此端口将可供 chroot 中的服务使用"
+    echo -e ""
+    
+    read -p "请输入端口号 (10000-65535): " port
+    
+    if [ -z "$port" ]; then
+        echo -e "${Error} 端口不能为空"
+        return 1
+    fi
+    
+    # 验证端口范围
+    if [ "$port" -lt 10000 ] || [ "$port" -gt 65535 ]; then
+        echo -e "${Error} 端口必须在 10000-65535 范围内"
+        return 1
+    fi
+    
+    echo -e ""
+    echo -e "${Info} 选择协议类型:"
+    echo -e "[1] TCP"
+    echo -e "[2] UDP"
+    echo -e "[3] TCP + UDP"
+    read -p "请选择 [默认1]: " proto_choice
+    proto_choice=${proto_choice:-1}
+    
+    case "$proto_choice" in
+        1)
+            echo -e "${Info} 添加 TCP 端口 $port..."
+            devil port add tcp $port
+            ;;
+        2)
+            echo -e "${Info} 添加 UDP 端口 $port..."
+            devil port add udp $port
+            ;;
+        3)
+            echo -e "${Info} 添加 TCP+UDP 端口 $port..."
+            devil port add tcp $port
+            devil port add udp $port
+            ;;
+        *)
+            echo -e "${Error} 无效选择"
+            return 1
+            ;;
+    esac
+    
+    # 记录端口到配置文件
+    mkdir -p "$MRCHROOT_DIR"
+    echo "$port" >> "$DEVIL_PORTS_FILE"
+    sort -u "$DEVIL_PORTS_FILE" -o "$DEVIL_PORTS_FILE"
+    
+    # 同步到 chroot 环境
+    if [ -d "$CHROOT_DIR/root" ]; then
+        cp "$DEVIL_PORTS_FILE" "$CHROOT_DIR/root/.devil_ports" 2>/dev/null
+    fi
+    
+    echo -e "${Info} 端口 $port 添加完成"
+    echo -e "${Tip} 现在可以在 chroot 中使用此端口"
+}
+
+# 查看已添加的 devil 端口
+show_devil_ports() {
+    echo -e ""
+    echo -e "${Green}==================== Devil 端口列表 ====================${Reset}"
+    
+    if check_devil; then
+        echo -e "${Info} 系统已添加的端口:"
+        devil port list 2>/dev/null || echo "  (无法获取)"
+    fi
+    
+    echo -e ""
+    if [ -f "$DEVIL_PORTS_FILE" ] && [ -s "$DEVIL_PORTS_FILE" ]; then
+        echo -e "${Info} 为 chroot 记录的端口:"
+        cat "$DEVIL_PORTS_FILE" | while read port; do
+            echo -e "  - $port"
+        done
+    else
+        echo -e "${Warning} 暂无为 chroot 记录的端口"
+    fi
+    
+    echo -e "${Green}=========================================================${Reset}"
+}
+
+# Devil 端口管理菜单
+devil_port_menu() {
+    echo -e ""
+    echo -e "${Green}==================== Devil 端口管理 ====================${Reset}"
+    echo -e " ${Cyan}在宿主环境中管理端口，供 chroot 服务使用${Reset}"
+    echo -e "${Green}--------------------------------------------------------${Reset}"
+    echo -e " ${Green}1.${Reset}  添加端口"
+    echo -e " ${Green}2.${Reset}  查看已添加的端口"
+    echo -e " ${Green}3.${Reset}  删除端口"
+    echo -e " ${Green}0.${Reset}  返回"
+    echo -e "${Green}=========================================================${Reset}"
+    read -p " 请选择 [0-3]: " choice
+    
+    case "$choice" in
+        1) add_devil_port ;;
+        2) show_devil_ports ;;
+        3)
+            if check_devil; then
+                echo -e ""
+                show_devil_ports
+                read -p "请输入要删除的端口: " del_port
+                if [ -n "$del_port" ]; then
+                    devil port del tcp $del_port 2>/dev/null
+                    devil port del udp $del_port 2>/dev/null
+                    # 从配置文件中删除
+                    if [ -f "$DEVIL_PORTS_FILE" ]; then
+                        grep -v "^${del_port}$" "$DEVIL_PORTS_FILE" > "$DEVIL_PORTS_FILE.tmp"
+                        mv "$DEVIL_PORTS_FILE.tmp" "$DEVIL_PORTS_FILE"
+                    fi
+                    echo -e "${Info} 端口 $del_port 已删除"
+                fi
+            fi
+            ;;
+        0|"") return ;;
+        *) echo -e "${Error} 无效选择" ;;
+    esac
+}
+
 # ==================== 卸载 ====================
 uninstall() {
     echo -e "${Warning} 确定要卸载 MrChrootBSD 及相关组件? [y/N]"
@@ -479,11 +620,13 @@ ${Green}--------------------------------------------------------${Reset}
  ${Green}8.${Reset}  安装 GostXray 脚本到 chroot
  ${Green}9.${Reset}  安装 X-UI 脚本到 chroot
 ${Green}--------------------------------------------------------${Reset}
+ ${Green}11.${Reset} ${Yellow}Devil 端口管理 (重要!)${Reset}
+${Green}--------------------------------------------------------${Reset}
  ${Green}10.${Reset} 卸载
  ${Green}0.${Reset}  退出
 ${Green}========================================================${Reset}
 "
-    read -p " 请选择 [0-10]: " num
+    read -p " 请选择 [0-11]: " num
     
     case "$num" in
         1)
@@ -550,6 +693,9 @@ ${Green}========================================================${Reset}
             ;;
         10)
             uninstall
+            ;;
+        11)
+            devil_port_menu
             ;;
         0)
             exit 0

@@ -809,34 +809,108 @@ add_relay_config() {
     # 端口配置
     printf "\n"
     printf "%b\n" "${Info} 端口配置 (类型: ${port_type}):"
-    printf "[1] 随机端口\n"
-    printf "[2] 手动指定端口\n"
-    printf "请选择 [默认1]: "
-    read port_mode
-    port_mode=${port_mode:-1}
     
-    case $port_mode in
-        1)
-            local_port=$(get_random_port 10000 65535)
-            retry=0
-            while ! check_port "$local_port" && [ "$retry" -lt 20 ]; do
+    # 检测 MrChrootBSD 环境，读取已添加的 devil 端口
+    DEVIL_PORTS_FILE="/root/.devil_ports"
+    devil_ports=""
+    
+    if [ "$IS_MRCHROOT" = "true" ] && [ -f "$DEVIL_PORTS_FILE" ] && [ -s "$DEVIL_PORTS_FILE" ]; then
+        printf "%b\n" "${Yellow}========================================${Reset}"
+        printf "%b\n" "${Warning} 检测到 MrChrootBSD 环境!"
+        printf "%b\n" "${Tip} 请使用已通过 devil 添加的端口"
+        printf "%b\n" "${Yellow}========================================${Reset}"
+        printf "\n"
+        printf "%b\n" "${Info} 已添加的 devil 端口:"
+        i=1
+        while read port; do
+            printf "  [%d] %s\n" "$i" "$port"
+            devil_ports="${devil_ports}${port} "
+            i=$((i + 1))
+        done < "$DEVIL_PORTS_FILE"
+        printf "\n"
+        printf "[1] 选择已添加的 devil 端口 (推荐)\n"
+        printf "[2] 手动输入端口\n"
+        printf "请选择 [默认1]: "
+        read port_mode
+        port_mode=${port_mode:-1}
+        
+        case $port_mode in
+            1)
+                printf "请输入端口序号: "
+                read port_index
+                if [ -z "$port_index" ]; then
+                    port_index=1
+                fi
+                local_port=$(echo "$devil_ports" | cut -d' ' -f"$port_index")
+                if [ -z "$local_port" ]; then
+                    printf "%b\n" "${Error} 无效序号"
+                    return 1
+                fi
+                printf "%b\n" "${Info} 选择端口: ${Green}$local_port (${port_type})${Reset}"
+                ;;
+            2)
+                printf "请输入端口 (确保已通过 devil 添加): "
+                read local_port
+                ;;
+            *)
+                printf "%b\n" "${Error} 无效选择"
+                return 1
+                ;;
+        esac
+    elif [ "$IS_MRCHROOT" = "true" ]; then
+        printf "%b\n" "${Yellow}========================================${Reset}"
+        printf "%b\n" "${Warning} 检测到 MrChrootBSD 环境!"
+        printf "%b\n" "${Red}未找到已添加的 devil 端口!${Reset}"
+        printf "%b\n" "${Yellow}========================================${Reset}"
+        printf "\n"
+        printf "%b\n" "${Tip} 请先退出 chroot，在宿主环境中添加端口:"
+        printf "%b\n" "   1. 退出 chroot: exit"
+        printf "%b\n" "   2. 运行: ./setup.sh"
+        printf "%b\n" "   3. 选择 11 - Devil 端口管理"
+        printf "%b\n" "   4. 添加端口后重新进入 chroot"
+        printf "\n"
+        printf "是否仍要继续? (端口可能无法绑定) [y/N]: "
+        read force_continue
+        case "$force_continue" in
+            [Yy]*)
+                printf "请输入端口号: "
+                read local_port
+                ;;
+            *)
+                return 1
+                ;;
+        esac
+    else
+        # 非 MrChrootBSD 环境，正常选择端口
+        printf "[1] 随机端口\n"
+        printf "[2] 手动指定端口\n"
+        printf "请选择 [默认1]: "
+        read port_mode
+        port_mode=${port_mode:-1}
+        
+        case $port_mode in
+            1)
                 local_port=$(get_random_port 10000 65535)
-                retry=$((retry + 1))
-            done
-            printf "%b\n" "${Info} 分配端口: ${Green}$local_port (${port_type})${Reset}"
-            ;;
-        2)
-            printf "请输入端口: "
-            read local_port
-            if ! check_port "$local_port"; then
-                printf "%b\n" "${Warning} 端口可能已被占用"
-            fi
-            ;;
-        *)
-            printf "%b\n" "${Error} 无效选择"
-            return 1
-            ;;
-    esac
+                retry=0
+                while ! check_port "$local_port" && [ "$retry" -lt 20 ]; do
+                    local_port=$(get_random_port 10000 65535)
+                    retry=$((retry + 1))
+                done
+                printf "%b\n" "${Info} 分配端口: ${Green}$local_port (${port_type})${Reset}"
+                ;;
+            2)
+                printf "请输入端口: "
+                read local_port
+                if ! check_port "$local_port"; then
+                    printf "%b\n" "${Warning} 端口可能已被占用"
+                fi
+                ;;
+            *)
+                printf "%b\n" "${Error} 无效选择"
+                return 1
+                ;;
+        esac
+    fi
     
     echo "$local_port" >> "$PORT_CONF"
     
