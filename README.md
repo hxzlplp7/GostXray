@@ -34,6 +34,37 @@ chmod +x gost.sh && ./gost.sh
 > - **端口连通性检查**: 添加规则前自动检测目标端口是否可达
 > - **协议类型识别**: 自动识别 TCP/UDP 协议类型并添加相应端口
 
+### Serv00 / HostUno + MrChrootBSD (伪 Root 环境) 🆕
+
+通过 MrChrootBSD 获取伪 root 权限后，可以在 chroot 环境中以 root 身份运行 GostXray：
+
+```bash
+# 方式一：使用一键安装脚本（推荐）
+curl -sL https://raw.githubusercontent.com/hxzlplp7/MrChrootBSD/main/setup-mrchroot.sh -o setup.sh
+chmod +x setup.sh && ./setup.sh
+
+# 安装完成后使用快捷命令
+source ~/.profile
+gostxray-root  # 在 chroot root 环境中运行 GostXray
+```
+
+```bash
+# 方式二：手动安装
+# 1. 先安装 MrChrootBSD 并配置 chroot 环境
+# 2. 下载 Root 版本脚本到 chroot 环境
+curl -sL https://raw.githubusercontent.com/hxzlplp7/GostXray/main/gost-root.sh -o ~/chroot/root/gost-root.sh
+
+# 3. 进入 chroot 并运行
+./mrchroot ~/chroot /root/gost-root.sh
+```
+
+> 🔥 **MrChrootBSD Root 版本特点:**
+> - 在 chroot 环境中以 **root 权限**运行
+> - **无需 devil 端口管理**，可直接绑定任意端口
+> - 支持安装到系统目录 `/usr/local/bin/`
+> - 可使用 pkg 安装额外依赖
+> - **适合需要更多权限的高级用法**
+
 ## ✨ 功能特性
 
 | 功能 | 说明 |
