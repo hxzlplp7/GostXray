@@ -186,9 +186,11 @@ parse_vless() {
     uuid="${link%%@*}"
     rest="${link#*@}"
     host_port="${rest%%\?*}"
+    host_port="${host_port%%#*}"
     host="${host_port%%:*}"
     port="${host_port##*:}"
-    port="${port%%#*}"
+    # 清理端口号
+    port=$(echo "$port" | sed 's/[^0-9]//g')
     
     params="${rest#*\?}"
     params="${params%%#*}"
@@ -241,9 +243,11 @@ parse_trojan() {
     password="${link%%@*}"
     rest="${link#*@}"
     host_port="${rest%%\?*}"
+    host_port="${host_port%%#*}"
     host="${host_port%%:*}"
     port="${host_port##*:}"
-    port="${port%%#*}"
+    # 清理端口号
+    port=$(echo "$port" | sed 's/[^0-9]//g')
     
     params="${rest#*\?}"
     params="${params%%#*}"
@@ -300,9 +304,11 @@ parse_hysteria2() {
     password="${link%%@*}"
     rest="${link#*@}"
     host_port="${rest%%\?*}"
+    host_port="${host_port%%#*}"  # 移除 # 后的注释
     host="${host_port%%:*}"
     port="${host_port##*:}"
-    port="${port%%#*}"
+    # 清理端口号，移除可能的 / 和其他非数字字符
+    port=$(echo "$port" | sed 's/[^0-9]//g')
     
     params="${rest#*\?}"
     params="${params%%#*}"
@@ -331,9 +337,11 @@ parse_tuic() {
     password="${auth#*:}"
     rest="${link#*@}"
     host_port="${rest%%\?*}"
+    host_port="${host_port%%#*}"
     host="${host_port%%:*}"
     port="${host_port##*:}"
-    port="${port%%#*}"
+    # 清理端口号
+    port=$(echo "$port" | sed 's/[^0-9]//g')
     
     echo "tuic|$uuid|$password|$host|$port"
 }
