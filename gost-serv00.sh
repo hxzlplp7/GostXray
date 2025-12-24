@@ -379,7 +379,17 @@ parse_tuic() {
     local port="${host_port##*:}"
     port="${port%%#*}"
     
-    echo "tuic|$uuid|$password|$host|$port"
+    local params="${rest#*\?}"
+    local sni="" alpn="" cc=""
+    while IFS='=' read -r key value; do
+        case $key in
+            sni) sni="$value" ;;
+            alpn) alpn="$value" ;;
+            congestion_control) cc="$value" ;;
+        esac
+    done <<< "$(echo "$params" | tr '&' '\n' | cut -d'#' -f1)"
+    
+    echo "tuic|$uuid|$password|$host|$port|$sni|$alpn|$cc"
 }
 
 parse_socks() {
@@ -504,11 +514,16 @@ generate_relay_link() {
         hysteria2)
             local link="hysteria2://${p[1]}@${relay_ip}:${relay_port}?"
             [ -n "${p[4]}" ] && link+="sni=${p[4]}&"
-            [ -n "${p[5]}" ] && link+="insecure=${p[5]}&"
+            link+="insecure=1&"
             echo "${link%&}#Relay-${p[2]}"
             ;;
         tuic)
-            echo "tuic://${p[1]}:${p[2]}@${relay_ip}:${relay_port}#Relay-${p[3]}"
+            local link="tuic://${p[1]}:${p[2]}@${relay_ip}:${relay_port}?"
+            [ -n "${p[5]}" ] && link+="sni=${p[5]}&"
+            [ -n "${p[6]}" ] && link+="alpn=${p[6]}&"
+            [ -n "${p[7]}" ] && link+="congestion_control=${p[7]}&"
+            link+="allow_insecure=1&"
+            echo "${link%&}#Relay-${p[3]}"
             ;;
         socks)
             if [ -n "${p[1]}" ]; then
