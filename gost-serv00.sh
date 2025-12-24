@@ -497,6 +497,7 @@ generate_relay_link() {
         hysteria2)
             local link="hysteria2://${p[1]}@${relay_ip}:${relay_port}?"
             [ -n "${p[4]}" ] && link+="sni=${p[4]}&"
+            [ -n "${p[5]}" ] && link+="insecure=${p[5]}&"
             echo "${link%&}#Relay-${p[2]}"
             ;;
         tuic)
