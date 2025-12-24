@@ -189,8 +189,10 @@ parse_vless() {
     host_port="${host_port%%#*}"
     host="${host_port%%:*}"
     port="${host_port##*:}"
-    # 清理端口号
-    port=$(echo "$port" | sed 's/[^0-9]//g')
+    # 清理端口号，移除尾部的 / 和其他常见字符（使用内置功能避免 fork）
+    port="${port%%/*}"
+    port="${port%%\?*}"
+    port="${port%%#*}"
     
     params="${rest#*\?}"
     params="${params%%#*}"
@@ -588,18 +590,39 @@ generate_gost_config() {
     gdport="$3"
     gproto="${4:-tcp}"
     
-    cat << EOF
-  - name: relay-${gport}
+    if [ "$gproto" = "udp" ]; then
+        # UDP 需要添加 metadata
+        cat << EOF
+  - name: relay-${gport}-udp
     addr: ":${gport}"
     handler:
-      type: ${gproto}
+      type: udp
     listener:
-      type: ${gproto}
+      type: udp
+      metadata:
+        keepAlive: true
+        ttl: 10s
+        readBufferSize: 4096
     forwarder:
       nodes:
         - name: target
           addr: "${ghost}:${gdport}"
 EOF
+    else
+        # TCP 配置
+        cat << EOF
+  - name: relay-${gport}-tcp
+    addr: ":${gport}"
+    handler:
+      type: tcp
+    listener:
+      type: tcp
+    forwarder:
+      nodes:
+        - name: target
+          addr: "${ghost}:${gdport}"
+EOF
+    fi
 }
 
 add_relay() {

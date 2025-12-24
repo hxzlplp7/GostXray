@@ -585,18 +585,39 @@ generate_gost_config() {
     local dport="$3"
     local proto="${4:-tcp}"  # 默认 TCP
     
-    cat << EOF
-  - name: relay-${port}
+    if [ "$proto" == "udp" ]; then
+        # UDP 需要添加 metadata
+        cat << EOF
+  - name: relay-${port}-udp
     addr: ":${port}"
     handler:
-      type: ${proto}
+      type: udp
     listener:
-      type: ${proto}
+      type: udp
+      metadata:
+        keepAlive: true
+        ttl: 10s
+        readBufferSize: 4096
     forwarder:
       nodes:
         - name: target
           addr: "${host}:${dport}"
 EOF
+    else
+        # TCP 配置
+        cat << EOF
+  - name: relay-${port}-tcp
+    addr: ":${port}"
+    handler:
+      type: tcp
+    listener:
+      type: tcp
+    forwarder:
+      nodes:
+        - name: target
+          addr: "${host}:${dport}"
+EOF
+    fi
 }
 
 add_relay() {

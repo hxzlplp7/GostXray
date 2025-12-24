@@ -727,7 +727,7 @@ generate_gost3_tcp_udp() {
     local target_port="$3"
     
     cat << EOF
-  - name: relay-${listen_port}
+  - name: relay-${listen_port}-tcp
     addr: ":${listen_port}"
     handler:
       type: tcp
@@ -743,6 +743,10 @@ generate_gost3_tcp_udp() {
       type: udp
     listener:
       type: udp
+      metadata:
+        keepAlive: true
+        ttl: 10s
+        readBufferSize: 4096
     forwarder:
       nodes:
         - name: target
