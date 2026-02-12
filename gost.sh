@@ -149,10 +149,15 @@ EOF
     systemctl daemon-reload
     systemctl enable gost >/dev/null 2>&1
     
+    # 创建快捷方式
+    local script_path=$(readlink -f "$0")
+    ln -sf "$script_path" /usr/local/bin/gost-menu
+    
     echo -e "${Info} GOST v3 安装完成!"
     echo -e "${Info} 二进制: $GOST_BIN"
     echo -e "${Info} 配置文件: $GOST_CONF"
     echo -e "${Info} 服务状态: systemctl status gost"
+    echo -e "${Info} 快捷命令: ${Green_font_prefix}gost-menu${Font_color_suffix}"
 }
 
 # ==================== 卸载 GOST ====================
@@ -169,6 +174,21 @@ uninstall_gost() {
     systemctl daemon-reload
     
     echo -e "${Info} GOST 已卸载"
+}
+
+# ==================== 日志查看 ====================
+show_log() {
+    echo -e ""
+    echo -e "查看日志方式:"
+    echo -e "[1] 查看最近 50 条日志"
+    echo -e "[2] 实时跟踪日志 (Ctrl+C 退出)"
+    read -p "请选择 [1/2]: " log_choice
+    
+    if [[ "$log_choice" == "2" ]]; then
+        journalctl -u gost -f
+    else
+        journalctl -u gost --no-pager -n 50
+    fi
 }
 
 # ==================== 服务管理 ====================
@@ -883,13 +903,14 @@ show_menu() {
     echo -e " ${Green_font_prefix}3.${Font_color_suffix} 启动 GOST"
     echo -e " ${Green_font_prefix}4.${Font_color_suffix} 停止 GOST"
     echo -e " ${Green_font_prefix}5.${Font_color_suffix} 重启 GOST"
+    echo -e " ${Green_font_prefix}6.${Font_color_suffix} 查看日志"
     echo -e "=========================================="
-    echo -e " ${Green_font_prefix}6.${Font_color_suffix} 新增转发配置"
-    echo -e " ${Green_font_prefix}7.${Font_color_suffix} 查看现有配置"
-    echo -e " ${Green_font_prefix}8.${Font_color_suffix} 删除一则配置"
+    echo -e " ${Green_font_prefix}7.${Font_color_suffix} 新增转发配置"
+    echo -e " ${Green_font_prefix}8.${Font_color_suffix} 查看现有配置"
+    echo -e " ${Green_font_prefix}9.${Font_color_suffix} 删除一则配置"
     echo -e "=========================================="
-    echo -e " ${Green_font_prefix}9.${Font_color_suffix} 定时重启配置"
-    echo -e " ${Green_font_prefix}10.${Font_color_suffix} TLS 证书配置"
+    echo -e " ${Green_font_prefix}10.${Font_color_suffix} 定时重启配置"
+    echo -e " ${Green_font_prefix}11.${Font_color_suffix} TLS 证书配置"
     echo -e "=========================================="
     echo -e " ${Green_font_prefix}0.${Font_color_suffix} 退出脚本"
     echo -e "=========================================="
@@ -907,7 +928,7 @@ show_menu() {
     echo -e " 配置数量: ${count}"
     echo -e ""
     
-    read -p " 请输入数字 [0-10]: " num
+    read -p " 请输入数字 [0-11]: " num
     
     case "$num" in
         0) exit 0 ;;
@@ -916,12 +937,13 @@ show_menu() {
         3) start_gost ;;
         4) stop_gost ;;
         5) restart_gost ;;
-        6) add_config ;;
-        7) show_all_config ;;
-        8) delete_config ;;
-        9) cron_menu ;;
-        10) cert_menu ;;
-        *) echo -e "${Error} 请输入正确数字 [0-10]" ;;
+        6) show_log ;;
+        7) add_config ;;
+        8) show_all_config ;;
+        9) delete_config ;;
+        10) cron_menu ;;
+        11) cert_menu ;;
+        *) echo -e "${Error} 请输入正确数字 [0-11]" ;;
     esac
     
     echo -e ""
