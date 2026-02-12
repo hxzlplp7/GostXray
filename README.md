@@ -30,6 +30,16 @@ wget -O gost.sh https://raw.githubusercontent.com/hxzlplp7/easygostv3/main/gost.
 chmod +x gost.sh && ./gost.sh
 ```
 
+### 国内 VPS (无法访问 GitHub)
+
+```bash
+# 通过代理下载脚本
+wget -O gost.sh https://ghproxy.cn/https://raw.githubusercontent.com/hxzlplp7/easygostv3/main/gost.sh
+
+# 运行（安装 GOST 时选择"代理加速"下载源）
+chmod +x gost.sh && ./gost.sh
+```
+
 ### Serv00 / HostUno (FreeBSD 非 Root)
 
 ```bash
@@ -41,30 +51,34 @@ chmod +x gost.sh && ./gost.sh
 ```
 
 > ⚠️ **Serv00 版本特点:**
+>
 > - 安装到用户目录 `~/.gost3/`
 > - 使用进程管理替代 systemd
 > - **Devil 端口管理**: 自动添加端口
 
-
 ## 功能
 
 ### 基础功能
+
 - systemd 服务管理
 - 多条转发规则同时生效
 - 机器重启后转发不失效
 
 ### 传输类型
+
 - TCP + UDP 不加密转发
 - TLS 隧道加密/解密
 - WS 隧道加密/解密
 - WSS 隧道加密/解密
 
 ### 代理服务
+
 - Shadowsocks 代理
 - SOCKS5 代理
 - HTTP 代理
 
 ### 高级功能
+
 - 多落地均衡负载 (round/random/fifo)
 - CDN 自选节点转发
 - 自定义 TLS 证书 (ACME 一键申请)

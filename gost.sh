@@ -83,7 +83,20 @@ install_gost() {
     mkdir -p "$GOST_DIR"
     
     # 下载 GOST v3
-    local url="https://github.com/go-gost/gost/releases/download/v${gost_version}/gost_${gost_version}_linux_${ARCH}.tar.gz"
+    local github_url="https://github.com/go-gost/gost/releases/download/v${gost_version}/gost_${gost_version}_linux_${ARCH}.tar.gz"
+    
+    echo -e ""
+    echo -e "请选择下载源:"
+    echo -e "[1] GitHub 直连 (默认)"
+    echo -e "[2] GitHub 代理加速 (国内推荐)"
+    read -p "请选择 [1/2]: " dl_source
+    
+    local url
+    if [[ "$dl_source" == "2" ]]; then
+        url="https://ghproxy.cn/${github_url}"
+    else
+        url="${github_url}"
+    fi
     echo -e "${Info} 下载地址: $url"
     
     cd /tmp
