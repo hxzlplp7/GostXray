@@ -33,8 +33,12 @@ chmod +x gost.sh && ./gost.sh
 ### 国内 VPS (无法访问 GitHub)
 
 ```bash
-# 通过代理下载脚本
-wget -O gost.sh https://ghproxy.cn/https://raw.githubusercontent.com/hxzlplp7/easygostv3/main/gost.sh
+# 通过代理下载脚本（任选一个可用的代理）
+wget -O gost.sh https://gh-proxy.com/https://raw.githubusercontent.com/hxzlplp7/easygostv3/main/gost.sh
+# 备选代理1:
+# wget -O gost.sh https://ghfast.top/https://raw.githubusercontent.com/hxzlplp7/easygostv3/main/gost.sh
+# 备选代理2:
+# wget -O gost.sh https://ghproxy.net/https://raw.githubusercontent.com/hxzlplp7/easygostv3/main/gost.sh
 
 # 运行（安装 GOST 时选择"代理加速"下载源）
 chmod +x gost.sh && ./gost.sh

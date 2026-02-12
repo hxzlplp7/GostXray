@@ -88,15 +88,18 @@ install_gost() {
     echo -e ""
     echo -e "请选择下载源:"
     echo -e "[1] GitHub 直连 (默认)"
-    echo -e "[2] GitHub 代理加速 (国内推荐)"
-    read -p "请选择 [1/2]: " dl_source
+    echo -e "[2] gh-proxy.com 代理加速"
+    echo -e "[3] ghfast.top 代理加速"
+    echo -e "[4] ghproxy.net 代理加速"
+    read -p "请选择 [1-4]: " dl_source
     
     local url
-    if [[ "$dl_source" == "2" ]]; then
-        url="https://ghproxy.cn/${github_url}"
-    else
-        url="${github_url}"
-    fi
+    case "$dl_source" in
+        2) url="https://gh-proxy.com/${github_url}" ;;
+        3) url="https://ghfast.top/${github_url}" ;;
+        4) url="https://ghproxy.net/${github_url}" ;;
+        *) url="${github_url}" ;;
+    esac
     echo -e "${Info} 下载地址: $url"
     
     cd /tmp
